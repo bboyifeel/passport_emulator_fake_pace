@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">passport_emulator_fake_pace</string>
+    <string name="servicedesc">Passport Emulation Service</string>
+    <string name="aiddescription">eMRTD list</string>
+</resources>
