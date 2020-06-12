@@ -26,14 +26,14 @@ class CardService: HostApduService() {
             return UNKNOWN_CMD
 
         var response = UNKNOWN_CMD
-        val recApduStr: String = ByteArrayToHexString(commandApdu)
-        Log.i(TAG, "Received APDU: $recApduStr")
+        Log.i(TAG, "Received APDU: " + ByteArrayToHexString(commandApdu))
 
         if (Arrays.equals(SELECT_APDU, commandApdu)) {
-            Log.i(TAG, "Select apdu came around")
+            Log.i(TAG, "This is a SELECT_APDU")
             response = OK_CMD
         }
 
+        Log.i(TAG, "Sending: " + ByteArrayToHexString(response))
         return response
     }
 
