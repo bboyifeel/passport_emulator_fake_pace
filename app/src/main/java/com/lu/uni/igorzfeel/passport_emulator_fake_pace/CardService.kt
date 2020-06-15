@@ -9,28 +9,31 @@ class CardService: HostApduService() {
 
     companion object {
         val TAG: String  = "CardService"
+
+        val OK_CAPDU        = Utils.hexStringToByteArray("9000")
+        val FAILED_CAPDU    = Utils.hexStringToByteArray("6F00")
+        val UNKNOWN_CAPDU   = Utils.hexStringToByteArray("0000")
+        val SELECT_CAPDU    = Utils.hexStringToByteArray("00A4040C07A0000002471001")
     }
 
-    private val OK_CMD = Utils.hexStringToByteArray("9000")
-    private val UNKNOWN_CMD = Utils.hexStringToByteArray("0000")
-
-
-    // ISO-DEP command HEADER for selecting an AID.
-    private val SELECT_APDU: ByteArray = Utils.hexStringToByteArray("00A4040C07A0000002471001")
 
     override fun onDeactivated(reason: Int) { }
+
 
     override fun processCommandApdu(commandApdu: ByteArray?, extras: Bundle?): ByteArray {
 
         if (commandApdu == null)
-            return UNKNOWN_CMD
+            return UNKNOWN_CAPDU
 
-        var response = UNKNOWN_CMD
+        var response = FAILED_CAPDU
         updateLog("Received APDU: " + Utils.toHex(commandApdu))
 
-        if (Arrays.equals(SELECT_APDU, commandApdu)) {
+        if (Arrays.equals(SELECT_CAPDU, commandApdu)) {
             updateLog( "This is a SELECT_APDU")
-            response = OK_CMD
+            response = OK_CAPDU
+        }
+        else {
+            response = UNKNOWN_CAPDU
         }
 
         updateLog("Sending: " + Utils.toHex(response))
