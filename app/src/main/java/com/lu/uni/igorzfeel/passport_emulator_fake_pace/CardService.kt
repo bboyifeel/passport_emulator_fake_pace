@@ -11,12 +11,12 @@ class CardService: HostApduService() {
         val TAG: String  = "CardService"
     }
 
-    private val OK_CMD = HexStringToByteArray("9000")
-    private val UNKNOWN_CMD = HexStringToByteArray("0000")
+    private val OK_CMD = Utils.hexStringToByteArray("9000")
+    private val UNKNOWN_CMD = Utils.hexStringToByteArray("0000")
 
 
     // ISO-DEP command HEADER for selecting an AID.
-    private val SELECT_APDU: ByteArray = HexStringToByteArray("00A4040C07A0000002471001")
+    private val SELECT_APDU: ByteArray = Utils.hexStringToByteArray("00A4040C07A0000002471001")
 
     override fun onDeactivated(reason: Int) { }
 
@@ -26,49 +26,21 @@ class CardService: HostApduService() {
             return UNKNOWN_CMD
 
         var response = UNKNOWN_CMD
-        Log.i(TAG, "Received APDU: " + ByteArrayToHexString(commandApdu))
+        updateLog("Received APDU: " + Utils.toHex(commandApdu))
 
         if (Arrays.equals(SELECT_APDU, commandApdu)) {
-            Log.i(TAG, "This is a SELECT_APDU")
+            updateLog( "This is a SELECT_APDU")
             response = OK_CMD
         }
 
-        Log.i(TAG, "Sending: " + ByteArrayToHexString(response))
+        updateLog("Sending: " + Utils.toHex(response))
         return response
     }
 
-    fun ByteArrayToHexString(bytes: ByteArray): String {
-        val hexArray = charArrayOf(
-            '0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
-            'A', 'B', 'C', 'D', 'E', 'F'
-        )
-        val hexChars =
-            CharArray(bytes.size * 2) // Each byte has two hex characters (nibbles)
-        var v: Int
-        for (j in bytes.indices) {
-            v = bytes[j].toInt()  and 0xFF // Cast bytes[j] to int, treating as unsigned value
-            hexChars[j * 2] = hexArray[v ushr 4] // Select hex character from upper nibble
-            hexChars[j * 2 + 1] =
-                hexArray[v and 0x0F] // Select hex character from lower nibble
-        }
-        return String(hexChars)
-    }
 
-    @Throws(IllegalArgumentException::class)
-    fun HexStringToByteArray(s: String): ByteArray {
-        val len = s.length
-        require(len % 2 != 1) { "Hex string must have even number of characters" }
-        val data =
-            ByteArray(len / 2) // Allocate 1 byte per 2 hex characters
-        var i = 0
-        while (i < len) {
-
-            // Convert each character into a integer (base-16), then bit-shift into place
-            data[i / 2] = ((Character.digit(s[i], 16) shl 4)
-                    + Character.digit(s[i + 1], 16)).toByte()
-            i += 2
-        }
-        return data
+    fun updateLog(msg: String) {
+        System.out.println(msg)
+        Log.i(TAG, msg)
     }
 
 }
