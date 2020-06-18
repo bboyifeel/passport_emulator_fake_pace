@@ -3,6 +3,7 @@ package com.lu.uni.igorzfeel.passport_emulator_fake_pace
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 
+
 class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
