@@ -1,8 +1,6 @@
 package com.lu.uni.igorzfeel.passport_emulator_fake_pace
 
 import android.nfc.NfcAdapter
-import android.nfc.Tag
-import android.nfc.tech.IsoDep
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.os.Handler
@@ -15,7 +13,6 @@ import java.net.InetAddress
 import java.net.InetSocketAddress
 import java.net.ServerSocket
 import java.net.Socket
-import java.util.*
 
 
 class PassportRelayActivity : AppCompatActivity() {
@@ -25,28 +22,9 @@ class PassportRelayActivity : AppCompatActivity() {
         const val MESSAGE_READ = 1
         var server: Server? = null
         var client: Client? = null
-
-        val OK_RAPDU        = Utils.hexStringToByteArray("9000")
-        val FAILED_RAPDU    = Utils.hexStringToByteArray("6F00")
-        val UNKNOWN_RAPDU   = Utils.hexStringToByteArray("0000")
-        val SELECT_CAPDU    = Utils.hexStringToByteArray("00A4040C07A0000002471001")
-        val CA1_CAPDU       = Utils.hexStringToByteArray("00A4020C02011C")
-        val CA2_CAPDU       = Utils.hexStringToByteArray("00B0000008")
-        val CA2_RAPDU       = Utils.hexStringToByteArray("31143012060A04009000")
-        val CA3_CAPDU       = Utils.hexStringToByteArray("00B000080E")
-        val CA3_RAPDU       = Utils.hexStringToByteArray("7F000702020402040201020201109000")
-        val PACE0_CAPDU     = Utils.hexStringToByteArray("0022C1A412800A04007F00070202040204830102840110")
-        val PACE0_RAPDU     = Utils.hexStringToByteArray("9000")
-        val PACE1_CAPDU     = Utils.hexStringToByteArray("10860000027C0000")
-        val PACE1_RAPDU     = Utils.hexStringToByteArray("7C228020C6E82CE4A0F80BAB907A95E573090DAA94BF4227FAB66DD4C46E6154E28992659000")
-        val PACE2_CAPDU     = Utils.hexStringToByteArray("10860000657C63816104")
-        val PACE2_RAPDU     = Utils.hexStringToByteArray("7C638261046D756A258E35BE0A4ED2C03FAA6EC4C814D6B35922B94B1DD755A4F86E50B3DA3B7F3BACD7B64B7312F537335E3089D6260248E2D21B45E1D143441FA6B94500F10CAAE948C002C68DDE4545236E2B15349C50DD1BAC40B0FC72BECE3277A1889000")
-        val PACE3_CAPDU     = Utils.hexStringToByteArray("10860000657C63836104")
-        val PACE3_RAPDU     = Utils.hexStringToByteArray("7C6384610407DCE7549D3057CDEED8FF8E46B0C286768D79AE949B2D49AC7B55981F3D5711E693BBCD0C6EC65DA3716DEA394AFA323854691E3EC50E2D514B108C6057D13F6FD916765889B6D534A916AB943719B3956E7A66FE7EC6A350FAC5B663F5F2569000")
-        val PACE4_CAPDU     = Utils.hexStringToByteArray("008600000C7C0A8508")
-        val PACE4_RAPDU     = Utils.hexStringToByteArray("7C0A860859088653F6DC213F9000")
     }
-    private var nfcAdapter: NfcAdapter? = null
+
+
     private var status: String = ""
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -69,7 +47,7 @@ class PassportRelayActivity : AppCompatActivity() {
 
 
         btnSend.setOnClickListener {
-            sendReceive.sendMessage("This is a test message".toByteArray())
+            sendReceive.sendMessage("This is a test message")
         }
     }
 
@@ -86,15 +64,6 @@ class PassportRelayActivity : AppCompatActivity() {
 
         updateLog("Connected as $status")
     }
-
-//    public override fun onDestroy() {
-//        super.onDestroy()
-//
-//        sendReceive.closeConnection()
-//
-//        if (status == WifiConnectionActivity.SERVER)
-//            server!!.closeServerSocket()
-//    }
 
 
     private fun updateLog(msg: String) {
@@ -130,18 +99,33 @@ class PassportRelayActivity : AppCompatActivity() {
         private lateinit var outputStream: OutputStream
 
         override fun run() {
+            updateLog("sendReceive has been initialized and started")
+            try {
+                inputStream = socket!!.getInputStream()
+                outputStream = socket.getOutputStream()
 
-            val buffer = ByteArray(1024)
-            var bytes: Int
-            while (socket != null) {
-                try {
-                    bytes = inputStream.read(buffer)
+                val buffer = ByteArray(1024)
+                var bytes: Int
+                while (true) {
+                    try {
+                        bytes = inputStream.read(buffer)
 
-                    if (bytes > 0) {
-                        handler
-                            .obtainMessage(WifiConnectionActivity.MESSAGE_READ, bytes, -1, buffer)
+                        if (bytes == -1) {
+                            break;
+                        }
+
+                        handler.obtainMessage(WifiConnectionActivity.MESSAGE_READ, bytes, -1, buffer)
                             .sendToTarget()
+
+                    } catch (e: IOException) {
+                        updateError(e.toString())
                     }
+                }
+            } catch (e: IOException) {
+                updateError(e.toString())
+            } finally {
+                try {
+                    socket?.close();
                 } catch (e: IOException) {
                     updateError(e.toString())
                 }
@@ -149,29 +133,14 @@ class PassportRelayActivity : AppCompatActivity() {
         }
 
 
-        fun sendMessage(bytes: ByteArray?) {
+        fun sendMessage(msg: String) {
+            write(msg.toByteArray())
+        }
+
+
+        fun write(bytes: ByteArray?) {
             try {
                 outputStream.write(bytes)
-            } catch (e: Exception) {
-                updateError(e.toString())
-            }
-        }
-
-
-        init {
-            updateLog("sendReceive has been initialized")
-            try {
-                inputStream = socket!!.getInputStream()
-                outputStream = socket.getOutputStream()
-            } catch (e: IOException) {
-                updateError(e.toString())
-            }
-        }
-
-
-        fun closeConnection() {
-            try{
-                socket!!.close()
             } catch (e: Exception) {
                 updateError(e.toString())
             }
@@ -180,56 +149,58 @@ class PassportRelayActivity : AppCompatActivity() {
 
     inner class Client(hostAddr: InetAddress) : Thread() {
         val serverPort = 9999
-        var clientSocket: Socket = Socket()
+        var socket: Socket = Socket()
 
         private var hostAddr: String = hostAddr.hostAddress
 
         override fun run() {
             try {
-                clientSocket.connect(InetSocketAddress(hostAddr, serverPort), 500)
-                sendReceive = SendReceive(clientSocket)
+                socket.bind(null)
+                socket.connect(InetSocketAddress(hostAddr, serverPort), 5000)
+                sendReceive = SendReceive(socket)
                 sendReceive.start()
             } catch (e: IOException) {
-                e.printStackTrace()
+                updateError(e.toString())
+                try {
+                    socket.close()
+                } catch (e: IOException) {
+                    updateError(e.toString())
+                }
+                return
             }
         }
     }
 
     inner class Server : Thread() {
         val serverPort = 9999
-        var isStopped = true
-
-        var clientSocket: Socket? = null
-        var serverSocket: ServerSocket? = null
+        var socket: ServerSocket? = null
 
         override fun run() {
             openServerSocket()
 
-            try {
-                clientSocket = serverSocket!!.accept()
-                sendReceive = SendReceive(clientSocket)
-                sendReceive.start()
-            } catch (e: IOException) {
-                e.printStackTrace()
+            while (true) {
+                try {
+                    sendReceive = SendReceive(socket!!.accept())
+                    sendReceive.start()
+                } catch (e: IOException) {
+                    try {
+                        if (socket != null && !socket!!.isClosed)
+                            socket!!.close()
+                    } catch (ioe: IOException) {
+                    }
+                    updateError(e.toString())
+                    break
+                }
             }
-        }
 
-
-        fun closeServerSocket() {
-            this.isStopped = true
-            try {
-                serverSocket!!.close()
-            } catch (e: IOException) {
-                e.printStackTrace()
-            }
         }
 
 
         private fun openServerSocket() {
             try {
-                serverSocket = ServerSocket(serverPort)
+                socket = ServerSocket(serverPort)
             } catch (e: IOException) {
-                e.printStackTrace()
+                updateError(e.toString())
             }
         }
     }
