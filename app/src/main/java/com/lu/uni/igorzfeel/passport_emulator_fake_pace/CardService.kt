@@ -1,9 +1,11 @@
 package com.lu.uni.igorzfeel.passport_emulator_fake_pace
 
+import android.content.Intent
 import android.nfc.cardemulation.HostApduService
 import android.os.Bundle
 import android.util.Log
 import java.util.*
+
 
 class CardService: HostApduService() {
 
@@ -15,77 +17,44 @@ class CardService: HostApduService() {
         val UNKNOWN_RAPDU   = Utils.hexStringToByteArray("0000")
         val SELECT_CAPDU    = Utils.hexStringToByteArray("00A4040C07A0000002471001")
         val CA1_CAPDU       = Utils.hexStringToByteArray("00A4020C02011C")
-        val CA2_CAPDU       = Utils.hexStringToByteArray("00B0000008")
-        val CA2_RAPDU       = Utils.hexStringToByteArray("31143012060A04009000")
-        val CA3_CAPDU       = Utils.hexStringToByteArray("00B000080E")
-        val CA3_RAPDU       = Utils.hexStringToByteArray("7F000702020402040201020201109000")
-        val PACE0_CAPDU     = Utils.hexStringToByteArray("0022C1A412800A04007F00070202040204830102840110")
-        val PACE0_RAPDU     = Utils.hexStringToByteArray("9000")
-        val PACE1_CAPDU     = Utils.hexStringToByteArray("10860000027C0000")
-        val PACE1_RAPDU     = Utils.hexStringToByteArray("7C228020C6E82CE4A0F80BAB907A95E573090DAA94BF4227FAB66DD4C46E6154E28992659000")
-        val PACE2_CAPDU     = Utils.hexStringToByteArray("10860000657C63816104")
-        val PACE2_RAPDU     = Utils.hexStringToByteArray("7C638261046D756A258E35BE0A4ED2C03FAA6EC4C814D6B35922B94B1DD755A4F86E50B3DA3B7F3BACD7B64B7312F537335E3089D6260248E2D21B45E1D143441FA6B94500F10CAAE948C002C68DDE4545236E2B15349C50DD1BAC40B0FC72BECE3277A1889000")
-        val PACE3_CAPDU     = Utils.hexStringToByteArray("10860000657C63836104")
-        val PACE3_RAPDU     = Utils.hexStringToByteArray("7C6384610407DCE7549D3057CDEED8FF8E46B0C286768D79AE949B2D49AC7B55981F3D5711E693BBCD0C6EC65DA3716DEA394AFA323854691E3EC50E2D514B108C6057D13F6FD916765889B6D534A916AB943719B3956E7A66FE7EC6A350FAC5B663F5F2569000")
-        val PACE4_CAPDU     = Utils.hexStringToByteArray("008600000C7C0A8508")
-        val PACE4_RAPDU     = Utils.hexStringToByteArray("7C0A860859088653F6DC213F9000")
+
+        val KEY_DATA = "data"
+        val MSG_RESPONSE_APDU = 1
     }
+
 
     override fun onDeactivated(reason: Int) { }
 
 
-    override fun processCommandApdu(commandApdu: ByteArray?, extras: Bundle?): ByteArray {
+    override fun processCommandApdu(commandApdu: ByteArray?, extras: Bundle?): ByteArray? {
 
         if (commandApdu == null)
             return UNKNOWN_RAPDU
 
         var response = UNKNOWN_RAPDU
-        updateLog("Received APDU: " + Utils.toHex(commandApdu))
+        updateLog("capdu: " + Utils.toHex(commandApdu))
 
-        if (Arrays.equals(SELECT_CAPDU, commandApdu)) {
+        if (Arrays.equals(SELECT_CAPDU, commandApdu) || Arrays.equals(CA1_CAPDU, commandApdu)) {
             response = OK_RAPDU
-        }
-        else if (Arrays.equals(CA1_CAPDU, commandApdu)) {
-            response = OK_RAPDU
-        }
-        else if (Arrays.equals(CA2_CAPDU, commandApdu)) {
-            response = CA2_RAPDU
-        }
-        else if (Arrays.equals(CA3_CAPDU, commandApdu)) {
-            response = CA3_RAPDU
-        }
-        else if (Arrays.equals(PACE0_CAPDU, commandApdu)) {
-            response = PACE0_RAPDU
-        }
-        else if (Arrays.equals(PACE1_CAPDU, commandApdu)) {
-            response = PACE1_RAPDU
+        } else {
+            updateLog("[->]")
+            PassportRelayActivity.sendReceive.sendMessage(Utils.toHex(commandApdu))
+            return null
         }
 
-        if (response != UNKNOWN_RAPDU) {
-            return response
-        }
-
-        val first10Bytes = commandApdu.take(10).toByteArray()
-        updateLog("First 10 bytes: " + Utils.toHex(first10Bytes))
-
-        if (Arrays.equals(PACE2_CAPDU, first10Bytes )) {
-            response = PACE2_RAPDU
-        }
-        else if (Arrays.equals(PACE3_CAPDU, commandApdu.take(10).toByteArray())) {
-            response = PACE3_RAPDU
-        }
-        else if (Arrays.equals(PACE4_CAPDU, first10Bytes.take(9).toByteArray())) {
-            response = PACE4_RAPDU
-        }
-
-        updateLog("Sending: " + Utils.toHex(response))
+        updateLog("rapdu: " + Utils.toHex(response))
         return response
     }
 
 
     fun updateLog(msg: String) {
-//        System.out.println(msg)
         Log.i(TAG, msg)
+    }
+
+
+    override fun onTaskRemoved(rootIntent: Intent) {
+        super.onTaskRemoved(rootIntent)
+        stopSelf()
     }
 
 }
@@ -111,7 +80,7 @@ class CardService: HostApduService() {
 //[PACEAPDUSender][sendMSESetATMutualAuth] Respond: 7C228020.C6E82CE4A0F80BAB907A95E573090DAA94BF4227FAB66DD4C46E6154E2899265.9000
 //
 //[PACEProtocol][doPACEStep1] The nonce is: CCBC7821ACCAF0DD456C943B8F051AD140C7398A84C39CAF381672D055A8965D
-//
+//                                                  10860000657C63816104.417C5A685B16535F31292B67D8A336189967C4EE57C771F7A4102405ABA61D99584CBA5890EC7B65983740E688754AC235ED7EC79BA33FEC61B412BC6C3C2B8C79E2426A9DAA1CB977728A06C57E5DEA58383840EA4B235D264F4590923167D000
 //[PACEAPDUSender][sendMSESetATMutualAuth] Sending: 10860000657C63816104.14328F0AD433938C4220799E1EE8610DEE735E6A7B4D484C0A8AEBB3994841F4ABE7EA822D5F3C765184400771A534CF6EB616F1AC51381D0F00E335E97D827409A78BCD083D95A7B2D4CB9CFA3B501787820E5D3D0766E90891B03F10BFE6.D700
 //[PACEAPDUSender][sendMSESetATMutualAuth] Respond: 7C63826104.6D756A258E35BE0A4ED2C03FAA6EC4C814D6B35922B94B1DD755A4F86E50B3DA3B7F3BACD7B64B7312F537335E3089D6260248E2D21B45E1D143441FA6B94500F10CAAE948C002C68DDE4545236E2B15349C50DD1BAC40B0FC72BECE3277A188.9000
 //

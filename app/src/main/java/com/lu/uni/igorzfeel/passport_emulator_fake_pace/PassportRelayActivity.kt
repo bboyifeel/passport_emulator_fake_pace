@@ -1,10 +1,13 @@
 package com.lu.uni.igorzfeel.passport_emulator_fake_pace
 
-import android.nfc.NfcAdapter
-import androidx.appcompat.app.AppCompatActivity
-import android.os.Bundle
-import android.os.Handler
+import android.content.ComponentName
+import android.content.Context
+import android.content.Intent
+import android.content.ServiceConnection
+import android.nfc.cardemulation.HostApduService
+import android.os.*
 import android.util.Log
+import androidx.appcompat.app.AppCompatActivity
 import kotlinx.android.synthetic.main.activity_passport_relay.*
 import java.io.IOException
 import java.io.InputStream
@@ -22,10 +25,69 @@ class PassportRelayActivity : AppCompatActivity() {
         const val MESSAGE_READ = 1
         var server: Server? = null
         var client: Client? = null
+        lateinit var sendReceive: SendReceive
+        var response = "0000"
     }
 
 
+
+
+    private var mBinder: Messenger? = null
+
+    fun sendResponseApdu(responseApdu: ByteArray?) {
+        val responseMsg: Message =
+            Message.obtain(null, CardService.MSG_RESPONSE_APDU)
+        val dataBundle = Bundle()
+        dataBundle.putByteArray(CardService.KEY_DATA, responseApdu)
+        responseMsg.data = dataBundle
+        try {
+            mBinder?.send(responseMsg)
+        } catch (e: RemoteException) {
+            updateError("Local messenger has died.")
+        }
+    }
+
+    private val serviceConnection: ServiceConnection = object : ServiceConnection {
+        override fun onServiceConnected(className: ComponentName, iBinder: IBinder) {
+            updateLog("ServiceConnection: connected to service.")
+            mBinder = Messenger(iBinder)
+        }
+
+        override fun onServiceDisconnected(arg0: ComponentName) {
+            updateLog("ServiceConnection: disconnected from service.")
+            mBinder = null
+        }
+    }
+
+    override fun onPause() {
+        super.onPause()
+        if(mBinder != null) {
+            unbindService(serviceConnection)
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        startService()
+    }
+
+
+    private fun startService() {
+        val intent = Intent(this, CardService::class.java)
+        startService(intent)
+        bindService()
+    }
+
+
+    private fun bindService() {
+        val intent = Intent(this, CardService::class.java)
+        bindService(intent,  serviceConnection, Context.BIND_AUTO_CREATE)
+    }
+
+
+
     private var status: String = ""
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -78,15 +140,14 @@ class PassportRelayActivity : AppCompatActivity() {
     }
 
 
-    private lateinit var sendReceive: SendReceive
-
     private var handler = Handler(Handler.Callback { msg ->
         when (msg.what) {
             MESSAGE_READ -> {
                 val buffer = msg.obj as ByteArray
                 val msgString = String(buffer, 0, msg.arg1)
-//                msgTextView.text = msgString
                 updateLog(msgString)
+
+                sendResponseApdu(Utils.hexStringToByteArray(msgString))
             }
         }
         true
@@ -97,6 +158,7 @@ class PassportRelayActivity : AppCompatActivity() {
 
         private lateinit var inputStream: InputStream
         private lateinit var outputStream: OutputStream
+
 
         override fun run() {
             updateLog("sendReceive has been initialized and started")
@@ -147,11 +209,14 @@ class PassportRelayActivity : AppCompatActivity() {
         }
     }
 
+
     inner class Client(hostAddr: InetAddress) : Thread() {
         val serverPort = 9999
         var socket: Socket = Socket()
 
+
         private var hostAddr: String = hostAddr.hostAddress
+
 
         override fun run() {
             try {
@@ -171,9 +236,11 @@ class PassportRelayActivity : AppCompatActivity() {
         }
     }
 
+
     inner class Server : Thread() {
         val serverPort = 9999
         var socket: ServerSocket? = null
+
 
         override fun run() {
             openServerSocket()
@@ -204,6 +271,5 @@ class PassportRelayActivity : AppCompatActivity() {
             }
         }
     }
-
 }
 
