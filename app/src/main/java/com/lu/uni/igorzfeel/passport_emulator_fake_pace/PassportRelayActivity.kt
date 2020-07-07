@@ -108,9 +108,9 @@ class PassportRelayActivity : AppCompatActivity() {
         }
 
 
-        btnSend.setOnClickListener {
-            sendReceive.sendMessage("This is a test message")
-        }
+//        btnSend.setOnClickListener {
+//            sendReceive.sendMessage("This is a test message")
+//        }
     }
 
     private fun initializeServer() {
@@ -145,7 +145,7 @@ class PassportRelayActivity : AppCompatActivity() {
             MESSAGE_READ -> {
                 val buffer = msg.obj as ByteArray
                 val msgString = String(buffer, 0, msg.arg1)
-                updateLog(msgString)
+                updateLog("[<-] " + msgString)
 
                 sendResponseApdu(Utils.hexStringToByteArray(msgString))
             }
