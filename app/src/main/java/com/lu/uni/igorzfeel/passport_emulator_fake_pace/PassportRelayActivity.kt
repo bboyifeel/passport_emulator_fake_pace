@@ -4,7 +4,6 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.ServiceConnection
-import android.nfc.cardemulation.HostApduService
 import android.os.*
 import android.util.Log
 import androidx.appcompat.app.AppCompatActivity
@@ -28,8 +27,6 @@ class PassportRelayActivity : AppCompatActivity() {
         lateinit var sendReceive: SendReceive
         var response = "0000"
     }
-
-
 
 
     private var mBinder: Messenger? = null
@@ -85,9 +82,7 @@ class PassportRelayActivity : AppCompatActivity() {
     }
 
 
-
     private var status: String = ""
-
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -97,20 +92,24 @@ class PassportRelayActivity : AppCompatActivity() {
         updateLog(status)
 
         try {
-
             if (status == WifiConnectionActivity.CLIENT)
                 initializeClient()
             else if (status == WifiConnectionActivity.SERVER)
                 initializeServer()
-
         } catch(e: Exception) {
             updateError(e.toString())
         }
 
 
-//        btnSend.setOnClickListener {
-//            sendReceive.sendMessage("This is a test message")
-//        }
+        setBACButton.setOnClickListener {
+            CardService.PROTOCOL = 2
+            protocolTextView.text = "Protocol: BAC"
+        }
+
+        setPACEButton.setOnClickListener {
+            CardService.PROTOCOL = 1
+            protocolTextView.text = "Protocol: PACE"
+        }
     }
 
     private fun initializeServer() {
@@ -130,13 +129,13 @@ class PassportRelayActivity : AppCompatActivity() {
 
     private fun updateLog(msg: String) {
         Log.i(TAG, msg)
-        runOnUiThread {textView.append(msg + "\n") }
+        runOnUiThread {logTextView.append(msg + "\n") }
     }
 
 
     private fun updateError(msg: String) {
         Log.e(TAG, msg)
-        runOnUiThread {textView.append("[ERROR] " + msg + "\n") }
+        runOnUiThread {logTextView.append("[ERROR] " + msg + "\n") }
     }
 
 

@@ -4,6 +4,7 @@ import android.content.Intent
 import android.nfc.cardemulation.HostApduService
 import android.os.Bundle
 import android.util.Log
+import java.lang.reflect.GenericArrayType
 import java.util.*
 
 
@@ -13,21 +14,37 @@ class CardService: HostApduService() {
         val TAG: String  = "CardService"
 
         val OK_RAPDU        = Utils.hexStringToByteArray("9000")
-        val FAILED_RAPDU    = Utils.hexStringToByteArray("6F00")
         val UNKNOWN_RAPDU   = Utils.hexStringToByteArray("0000")
         val SELECT_CAPDU    = Utils.hexStringToByteArray("00A4040C07A0000002471001")
         val CA1_CAPDU       = Utils.hexStringToByteArray("00A4020C02011C")
 
+
+        val GET_CHALLENGE               = Utils.hexStringToByteArray("00840000")
+        val EXTERNAL_AUTHENTICATE     = Utils.hexStringToByteArray("00820000")
+
+        val SELECT_APPLET_SUCCESS = Utils.hexStringToByteArray("0BE95354D509E58A9000")
+
         val KEY_DATA = "data"
         val MSG_RESPONSE_APDU = 1
+        // 1 - PACE, 2 - BAC
+        var PROTOCOL = 1
     }
+
+
 
 
     override fun onDeactivated(reason: Int) { }
 
 
     override fun processCommandApdu(commandApdu: ByteArray?, extras: Bundle?): ByteArray? {
+        if (PROTOCOL == 1) {
+            return relayPACE(commandApdu)
+        }
 
+        return relayBAC(commandApdu)
+    }
+
+    private fun relayPACE(commandApdu: ByteArray?): ByteArray? {
         if (commandApdu == null)
             return UNKNOWN_RAPDU
 
@@ -47,6 +64,33 @@ class CardService: HostApduService() {
     }
 
 
+    private fun relayBAC(commandApdu: ByteArray?): ByteArray? {
+        updateLog("HANDLING with bac")
+
+        if (commandApdu == null)
+            return UNKNOWN_RAPDU
+
+        var response = UNKNOWN_RAPDU
+        updateLog("capdu: " + Utils.toHex(commandApdu))
+
+        if (Arrays.equals(SELECT_CAPDU, commandApdu)) {
+            response = OK_RAPDU
+        } else if (Arrays.equals(GET_CHALLENGE, commandApdu.take(4).toByteArray())
+            || Arrays.equals(EXTERNAL_AUTHENTICATE, commandApdu.take(4).toByteArray())
+            || Arrays.equals(SELECT_APPLET_SUCCESS, commandApdu)) {
+
+            updateLog("[->]")
+            PassportRelayActivity.sendReceive.sendMessage(Utils.toHex(commandApdu))
+            return null
+        } else {
+            response = UNKNOWN_RAPDU
+        }
+
+        updateLog("rapdu: " + Utils.toHex(response))
+        return response
+    }
+
+
     fun updateLog(msg: String) {
         Log.i(TAG, msg)
     }
@@ -57,10 +101,12 @@ class CardService: HostApduService() {
         stopSelf()
     }
 
+
+
 }
 
 
-//// msg flow
+//// PACE msg flow
 //
 //[ReadBinaryAPDUSender][sendSelectFile] Sending: 00A4020C02011C
 //[ReadBinaryAPDUSender][sendSelectFile] Received: 9000
