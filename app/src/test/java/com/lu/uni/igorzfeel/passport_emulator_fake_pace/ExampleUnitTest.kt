@@ -1,4 +1,4 @@
-package com.lu.uni.igorzfeel.passport_emulator_fake_pace
+package com.lu.uni.igorzfeel.passport_emulator_relay
 
 import org.junit.Test
 
